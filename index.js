@@ -1326,34 +1326,7 @@ axios.get(`https://arugaz.herokuapp.com/api/getzodiak?nama=aruga&tgl-bln-thn=${t
     conn.sendMessage(id, hasil, MessageType.text, { quoted: m });
   })
  }
-    if (text.includes('>randomhentai'))
-   {
-    var items = ["nsfwhentai", "anime hentai", "hentai", "nsfwneko"];
-    var cewe = items[Math.floor(Math.random() * items.length)];
-    var url = "https://api.fdci.se/rep.php?gambar=" + cewe;
     
-    axios.get(url)
-      .then((result) => {
-        var b = JSON.parse(JSON.stringify(result.data));
-        var cewek =  b[Math.floor(Math.random() * b.length)];
-        imageToBase64(cewek) // Path to the image
-        .then(
-            (response) => {
-	var buf = Buffer.from(response, 'base64'); // Ta-da	
-              conn.sendMessage(
-            id,
-              buf,MessageType.image)
-       
-            }
-        )
-        .catch(
-            (error) => {
-                console.log(error); // Logs an error if there was one
-            }
-        )
-    
-    });
-    }
 if (text.includes('>meme'))
    {
     var items = ["meme Indonesia", "funny meme", "meme", "meme 2020"];
@@ -1877,7 +1850,7 @@ axios.get(`https://freerestapi.herokuapp.com/api/v1/hilih?kata=${teks}`).then((r
   })
  } 
 if (text.includes('>image18')){
-  var teks = text.replace(/>randomhentai /, '')
+  var teks = text.replace(/>image18 /, '')
     axios.get('https://freerestapi.herokuapp.com/api/v1/randomp')
     .then((res) => {
       imageToBase64(res.data.url)
@@ -1939,18 +1912,7 @@ const timestamp = speed();
 const latensi = speed() - timestamp
 conn.sendMessage(id, `PONG!!\nSpeed: ${latensi.toFixed(4)} _Second_`, MessageType.text, {quoted: m})
 }
-if (text.includes('>randomhentai')){
-  var teks = text.replace(/>randomhentai /, '')
-    axios.get(`https://tobz-api.herokuapp.com/api/hentai`).then((res) => {
-      imageToBase64(res.data.result)
-        .then(
-          (ress) => {
-         conn.sendMessage(id, 'Mohon Gunakan Fitur Ini Di Private Chat Chopper, Paham Kan Kontol?', MessageType.text, { quoted: m })
-            var buf = Buffer.from(ress, 'base64')
-            conn.sendMessage(id, buf, MessageType.image, { quoted: m })
-        })
-    })
-}
+
 if (text.includes('>pornhub')){
 var porn = text.split(">pornhub ")[1];
     var text1 = porn.split("|")[0];
@@ -2023,6 +1985,10 @@ else if (text == 'jir'){
 let stik = fs.readFileSync('temp/' + 'jir' + '.webp')
             conn.sendMessage(id, stik, MessageType.sticker, { quoted: m })
 }
+else if (text == 'bot'){
+let stik = fs.readFileSync('temp/' + 'bot' + '.webp')
+            conn.sendMessage(id, stik, MessageType.sticker, { quoted: m })
+}
 if (text.includes('>randomcry')){
   var teks = text.replace(/>randomcry /, '')
     axios.get(`https://tobz-api.herokuapp.com/api/cry`).then((res) => {
@@ -2031,6 +1997,90 @@ if (text.includes('>randomcry')){
           (ress) => {
             var buf = Buffer.from(ress, 'base64')
             conn.sendMessage(id, buf, MessageType.image, { caption: 'bakaa:(', quoted: m })
+        })
+    })
+}
+if (messageType === MessageType.text)
+   {
+      let is = m.message.conversation.toLocaleLowerCase()
+
+      if (is == '>fakta')
+      {
+
+         fetch('https://raw.githubusercontent.com/ArugaZ/grabbed-results/main/random/faktaunix.txt')
+            .then(res => res.text())
+            .then(body =>
+            {
+               let tod = body.split("\n");
+               let pjr = tod[Math.floor(Math.random() * tod.length)];
+               let fakta = pjr.replace(/pjrx-line/g, "\n");
+               conn.sendMessage(id, fakta, MessageType.text, { quoted: m })
+            });
+      }
+
+   }
+  
+  if (text.includes('>nsfwblowjob')){
+  var teks = text.replace(/>nsfwblowjob /, '')
+    axios.get('https://tobz-api.herokuapp.com/api/nsfwblowjob')
+    .then((res) => {
+      imagegifToBase64(res.data.result)
+        .then(
+          (ress) => {
+           conn.sendMessage(id, 'Mohon Gunakan Fitur Ini Di Private Chat Chopper, Demi Kenyamanan Member Group!!!', MessageType.text, { quoted: m })
+           var buf = Buffer.from(ress, 'base64')
+            conn.sendMessage(id, buf, MessageType.imagegif)
+        })
+    })
+}
+  if (text.includes('>hug')){
+  var teks = text.replace(/>hug /, '')
+    axios.get('https://tobz-api.herokuapp.com/api/hug')
+    .then((res) => {
+      imagegifToBase64(res.data.result)
+        .then(
+          (ress) => {
+            var buf = Buffer.from(ress, 'base64')
+            conn.sendMessage(id, buf, MessageType.imagegif, { quoted: m })
+        })
+    })
+}
+if (text.includes('>randomhentai')){
+  var teks = text.replace(/>randomhentai /, '')
+    axios.get('https://tobz-api.herokuapp.com/api/hentai')
+    .then((res) => {
+      imageToBase64(res.data.result)
+        .then(
+        (ress) => {
+       conn.sendMessage(id, 'Mohon Gunakan Fitur Ini Di Private Chat Chopper, Demi Kenyamanan Member Group?', MessageType.text, { quoted: m })
+           var buf = Buffer.from(ress, 'base64')
+            conn.sendMessage(id, buf, MessageType.image, { caption: 'EHH!?', quoted: m })
+        })
+    })
+}
+if (text.includes('>nsfwneko')){
+  var teks = text.replace(/>nsfwneko /, '')
+    axios.get('https://tobz-api.herokuapp.com/api/nsfwneko')
+    .then((res) => {
+      imageToBase64(res.data.result)
+        .then(
+        (ress) => {
+       conn.sendMessage(id, 'Mohon Gunakan Fitur Ini Di Private Chat Chopper, Demi Kenyamanan Member Group?', MessageType.text, { quoted: m })
+           var buf = Buffer.from(ress, 'base64')
+            conn.sendMessage(id, buf, MessageType.image, { caption: 'EHH!?', quoted: m })
+        })
+    })
+}
+if (text.includes('>nsfwtrap')){
+  var teks = text.replace(/>nsfwtrap /, '')
+    axios.get('https://tobz-api.herokuapp.com/api/nsfwtrap')
+    .then((res) => {
+      imageToBase64(res.data.result)
+        .then(
+        (ress) => {
+       conn.sendMessage(id, 'Mohon Gunakan Fitur Ini Di Private Chat Chopper, Demi Kenyamanan Member Group?', MessageType.text, { quoted: m })
+           var buf = Buffer.from(ress, 'base64')
+            conn.sendMessage(id, buf, MessageType.image, { caption: 'EHH!?', quoted: m })
         })
     })
 }
