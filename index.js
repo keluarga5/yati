@@ -13,6 +13,7 @@ const donate = require("./lib/donate.js");
 const info = require("./lib/info.js");
 const readTextInImage = require('./lib/ocr');
 const speed = require('performance-now');
+const { exec } = require("child_process");
 //
 const BotName = 'Chopper'; // Nama Bot Whatsapp
 const instagramlu = 'https://instagram.com/serenyemnyem'; // Nama Instagramlu cok
@@ -26,6 +27,28 @@ const vcard = 'BEGIN:VCARD\n' // metadata of the contact card
              + 'ORG:ig : @serenyemnyem;\n' // the organization of the contact
              + 'TEL;type=CELL;type=VOICE;waid=6285779386736:+62 857-7938-6736\n' // WhatsApp ID + phone number
              + 'END:VCARD'
+
+
+const { color, bgcolor } = require('./lib/color')
+const { getBuffer, fetchJson } = require('./lib/fetcher')
+const { wait } = require('./lib/functions')
+const { getGroupAdmins, getRandom } = require("./lib/functions")
+const nsfw = JSON.parse(fs.readFileSync('./src/nsfw.json'))
+const welkom = JSON.parse(fs.readFileSync('./src/welkom.json'))
+blocked = []
+let prefix = ">"
+
+function kyun(seconds){
+  function pad(s){
+    return (s < 10 ? '0' : '') + s;
+  }
+  var hours = Math.floor(seconds / (60*60));
+  var minutes = Math.floor(seconds % (60*60) / 60);
+  var seconds = Math.floor(seconds % 60);
+
+  //return pad(hours) + ':' + pad(minutes) + ':' + pad(seconds)
+  return `${pad(hours)} Jam ${pad(minutes)} Menit ${pad(seconds)} Detik`
+}
 //
 const
 {
@@ -74,6 +97,54 @@ fs.existsSync('./session.json') && conn.loadAuthInfo('./session.json')
 //conn.connectOptions.agent = ProxyAgent ('http://1.0.180.120:8080')
 conn.connect();
 
+conn.on (["action", null, "battery"], json => {
+
+    const batteryLevelStr = json[2][0][1].value
+
+    const batterylevel = parseInt (batteryLevelStr)
+
+    console.log ("battery level: " + batterylevel + "%")
+
+})
+
+conn.on('group-participants-update', async (anu) => {
+		if (!welkom.includes(anu.jid)) return
+		try {
+			const mdata = await conn.groupMetadata(anu.jid)
+			console.log(anu)
+			if (anu.action == 'add') {
+				num = anu.participants[0]
+				try {
+					ppimg = await conn.getProfilePicture(`${anu.participants[0].split('@')[0]}@c.us`)
+				} catch {
+					ppimg = 'https://i0.wp.com/www.gambarunik.id/wp-content/uploads/2019/06/Top-Gambar-Foto-Profil-Kosong-Lucu-Tergokil-.jpg'
+				}
+				teks = `Halo @${num.split('@')[0]}\nSelamat datang di group *${mdata.subject}*`
+				let buff = await getBuffer(ppimg)
+				conn.sendMessage(mdata.id, buff, MessageType.image, {caption: teks, contextInfo: {"mentionedJid": [num]}})
+			} else if (anu.action == 'remove') {
+				num = anu.participants[0]
+				try {
+					ppimg = await client.getProfilePicture(`${num.split('@')[0]}@c.us`)
+				} catch {
+					ppimg = 'https://i0.wp.com/www.gambarunik.id/wp-content/uploads/2019/06/Top-Gambar-Foto-Profil-Kosong-Lucu-Tergokil-.jpg'
+				}
+				teks = `Sayonara @${num.split('@')[0]}`
+				let buff = await getBuffer(ppimg)
+				conn.sendMessage(mdata.id, buff, MessageType.image, {caption: teks, contextInfo: {"mentionedJid": [num]}})
+			}
+		} catch (e) {
+			console.log('Error : %s', color(e, 'red'))
+		}
+	})
+
+conn.on('CB:Blocklist', json => {
+		if (blocked.length > 2) return
+	    for (let i of json[1].blocklist) {
+	    	blocked.push(i.replace('c.us','s.whatsapp.net'))
+	    }
+	})
+
 conn.on('user-presence-update', json => console.log(`[ ${moment().format("HH:mm:ss")} ] =>  recode by: @serenyemnyem`))
 conn.on('message-status-update', json =>
 {
@@ -83,43 +154,255 @@ conn.on('message-status-update', json =>
 
 conn.on('message-new', async(m) =>
 {
-   const messageContent = m.message
-   const text = m.message.conversation
-   let id = m.key.remoteJid
-   const messageType = Object.keys(messageContent)[0] // message will always contain one key signifying what kind of message
-   let imageMessage = m.message.imageMessage;
-   console.log(`[ ${moment().format("HH:mm:ss")} ] => Nomor: [ ${id.split("@s.whatsapp.net")[0]} ] => ${text}`);
+   const from = m.key.remoteJid
+	const { msgType, extendedText } = MessageType
+    global.blocked
+    global.prefix
+	const content = JSON.stringify(m.message)
+    const messageContent = m.message
+    const text = m.message.conversation
+    let id = m.key.remoteJid
+    const messageType = Object.keys(messageContent)[0] // message will always contain one key signifying what kind of message
+    const type = Object.keys(m.message)[0]
+    let imageMessage = m.message.imageMessage;
+    body = (type === 'conversation' && m.message.conversation.startsWith(prefix)) ? m.message.conversation : (type == 'imageMessage') && m.message.imageMessage.caption.startsWith(prefix) ? m.message.imageMessage.caption : (type == 'videoMessage') && m.message.videoMessage.caption.startsWith(prefix) ? m.message.videoMessage.caption : (type == 'extendedTextMessage') && m.message.extendedTextMessage.text.startsWith(prefix) ? m.message.extendedTextMessage.text : ''
+   
+   //stiker
+   const isMedia = (type === 'imageMessage' || type === 'videoMessage')
+   const isQuotedImage = type === 'extendedTextMessage' && content.includes('imageMessage')
+   const isQuotedVideo = type === 'extendedTextMessage' && content.includes('videoMessage')
+	const isQuotedSticker = type === 'extendedTextMessage' && content.includes('stickerMessage')
+   
+   const args = body.trim().split(/ +/).slice(1)
+
+   console.log(`[ ${moment().format("HH:mm:ss")} ] => Nomor: [ ${id.split("@s.whatsapp.net")} ] => ${text}`);
+   
+   //premiumyak!!!/donasi
+   
+   
+   //sampe sini
 
 
-// Groups
+const botNumber = conn.user.jid
+const ownerNumber = ["6285779386736@s.whatsapp.net"] // replace this with your number
+const isGroup = from.endsWith('@g.us')
+const sender = isGroup ? m.participant : m.key.remoteJid
+const groupMetadata = isGroup ? await conn.groupMetadata(from) : ''
+const groupName = isGroup ? groupMetadata.subject : ''
+const groupId = isGroup ? groupMetadata.jid : ''
+const groupMembers = isGroup ? groupMetadata.participants : ''
+const groupAdmins = isGroup ? getGroupAdmins(groupMembers) : ''
+const isBotGroupAdmins = groupAdmins.includes(botNumber) || false
+const isGroupAdmins = groupAdmins.includes(sender) || false
+const isOwner = ownerNumber.includes(sender)
+const isNsfw = isGroup ? nsfw.includes(from) : false
+const isWelkom = isGroup ? welkom.includes(from) : false
 
-if (text.includes(">buatgrup"))
-   {
-var nama = text.split(">buatgrup")[1].split("-nomor")[0];
-var nom = text.split("-nomor")[1];
-var numArray = nom.split(",");
-for ( var i = 0; i < numArray.length; i++ ) {
-    numArray[i] = numArray[i] +"@s.whatsapp.net";
+
+const reply = (teks) => {
+				conn.sendMessage(from, teks, text, {quoted:m})
+			}
+			const sendMess = (hehe, teks) => {
+				conn.sendMessage(hehe, teks, text)
+			}
+			const mentions = (teks, memberr, id) => {
+				(id == null || id == undefined || id == false) ? conn.sendMessage(from, teks.trim(), extendedText, {contextInfo: {"mentionedJid": memberr}}) : conn.sendMessage(from, teks.trim(), extendedText, {quoted: m, contextInfo: {"mentionedJid": memberr}})
+			}
+
+//command
+
+if (text == prefix + "clear") {
+		if (!isOwner) return conn.sendMessage(id , "Koe Bukan Owner Sat!" , MessageType.text )
+		anu = await conn.chats.all()
+					conn.setMaxListeners(100)
+					for (let _ of anu) {
+						conn.deleteChat(_.jid)
+						console.log("Sukses Di Bersihkan!")
+					}
+					conn.sendMessage(id, "Berhasil Di Bersihkan!", MessageType.text, {quoted: m})
+					}
+					
+					if (text == prefix + "adminlist") {
+						
+						
+						if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+					teks = `List admin of group *${groupMetadata.subject}*\nTotal : ${groupAdmins.length}\n\n`
+					no = 0
+					for (let admon of groupAdmins) {
+						no += 1
+						teks += `${no.toString()}.@${admon.split('@')[0]}\n`
+					}
+					mentions(teks, groupAdmins, true)
+	}
+	
+	if (text.includes(prefix + "kick")) {
+		
+		if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Dapat Mengkick, Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+		if (args[0].startsWith('08')) return conn.sendMessage(id, 'Gunakan kode negara mas', MessageType.text, {quoted: m})
+						num = `${args[0].replace(/ /g, '')}@s.whatsapp.net`
+						conn.groupRemove(from, [num]).catch(
+
+            (error) => {
+
+                conn.sendMessage(id, "Tidak Bisa Menambah", MessageType.text, {quoted: m})
+
+            }
+
+        )
+						
+						}
+					
+					if (text == prefix + "tagall") {
+						
+						if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+						members_id = []
+					teks = (args.length > 1) ? body.slice(8).trim() : ''
+					no = 0
+					teks += '\n\n'
+					for (let mem of groupMembers) {
+						no += 1
+						teks += `${no.toString()}.@${mem.jid.split('@')[0]}\n`
+						members_id.push(mem.jid)
+					}
+					mentions(teks, members_id, true)
 }
-var str = numArray.join("");
-console.log(str)
-const group = await conn.groupCreate (nama, str)
-console.log ("created group with id: " + group.gid)
-conn.sendMessage(group.gid, "hello everyone", MessageType.extendedText) // say hello to everyone on the group
+	if (text.includes(prefix + "add")) {
+		if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+		if (args[0].startsWith('08')) return conn.sendMessage(id, 'Gunakan kode negara mas', MessageType.text, {quoted: m})
+						num = `${args[0].replace(/ /g, '')}@s.whatsapp.net`
+						conn.groupAdd(from, [num]).catch(
 
+            (error) => {
+
+                conn.sendMessage(id, "Tidak Bisa Menambah", MessageType.text, {quoted: m})
+
+            }
+
+        )
+						
+						}
+						
+						
+						if (text.includes(prefix + "setdesc")) {
+							if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+							const teks = text.replace(/!!!setdesc /, "")
+							await conn.groupUpdateDescription(id.split("@s.whatsapp.net")[0] , teks)
+							conn.sendMessage(id, "Berhasil Ganti Description Menjadi\n\n" + teks , MessageType.text, {quoted: m})
+							}
+							
+							if (text.includes(prefix + "setname")) {
+								
+								if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+							const teks = text.replace(/!!!setname /, "")
+                             await conn.groupUpdateSubject(id.split("@s.whatsapp.net")[0], teks)
+                             conn.sendMessage(id, "Berhasil Ganti Nama Menjadi " + teks , MessageType.text, {quoted: m})
+               }
+               
+               if (text == prefix + "leave") {
+               	
+               	if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+await conn.groupLeave (id.split("@s.whatsapp.net")[0]) // (will throw error if it fails)
 }
 
-// FF
-if(text.includes(">ceknomor")){
-var num = text.replace(/>ceknomor/ , "")
-var idn = num.replace("0","+62");
+if (text == prefix + "blocklist") {
+	teks = 'This is list of blocked number :\n'
+	no = 0
+					for (let block of blocked) {
+						no += 1
+						teks += `${no.toString()}.@${block.split('@')[0]}\n`
+					}
+					teks += `Total : ${blocked.length}`
+					conn.sendMessage(from, teks.trim(), extendedText, {quoted: mek, contextInfo: {"mentionedJid": blocked}})
+}
 
-console.log(id);
-const gg = idn+'@s.whatsapp.net'
 
-const exists = await conn.isOnWhatsApp (gg)
-console.log(exists);
-conn.sendMessage(id ,`${gg} ${exists ? " exists " : " does not exist"} on WhatsApp`, MessageType.text)
+
+if (text.includes(prefix + "demote")) {
+	
+	if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+		if (args[0].startsWith('08')) return conn.sendMessage(id, 'Gunakan kode negara mas', MessageType.text, {quoted: m})
+						num = `${args[0].replace(/ /g, '')}@s.whatsapp.net`
+ conn.groupMakeAdmin(from, [num, num]).catch(
+
+            (error) => {
+
+                conn.sendMessage(id, "Tidak Bisa Demote", MessageType.text, {quoted: m})
+
+            }
+
+        )
+        
+        conn.sendMessage(id, `Berhasil Demote ${num}`, MessageType.text)
+ 
+ 
+						}
+
+if (text.includes(prefix + "undemote")) {
+	
+	if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+		if (args[0].startsWith('08')) return conn.sendMessage(id, 'Gunakan kode negara mas', MessageType.text, {quoted: m})
+						num = `${args[0].replace(/ /g, '')}@s.whatsapp.net`
+ await conn.groupDemoteAdmin(from, [num, num]).catch(
+
+            (error) => {
+
+                conn.sendMessage(id, "Tidak Bisa Undemote", MessageType.text, {quoted: m})
+
+            }
+
+        )
+ 
+ conn.sendMessage(id, `Berhasil Undemote ${num}`, MessageType.text)
+						}
+
+if (text == prefix + "infobot") {
+	
+	me = conn.user
+					uptime = process.uptime()
+					teks = `*Nama bot* : ${me.name}\n*Nomor Bot* : @${me.jid.split('@')[0]}\n*Prefix* : ${prefix}\n*Total Block Contact* : ${blocked.length}\n*The bot is active on* : ${kyun(uptime)}`
+					buffer = await getBuffer(me.imgUrl)
+					conn.sendMessage(from, buffer, MessageType.image, {caption: teks, contextInfo:{mentionedJid: [me.jid]}})
+}
+
+if (text.includes(prefix + "welcome")) {
+	if (!isGroup) return conn.sendMessage(id, "Ini Bukan Grup Bodo!", MessageType.text , {quoted: m})
+		if (!isBotGroupAdmins) return conn.sendMessage(id, "Bot Tidak Menjadi Admin Silakan Adminkan Untuk Bisa Menggunakan Fitur Ini", MessageType.text, { quoted: m })
+		if (!isGroupAdmins) return conn.sendMessage(id, "Kamu Bukan Admin!", MessageType.text, {quoted: m})
+					if (args.length < 1) return conn.sendMessage(id, 'Hmmmm', MessageType.text)
+					if (Number(args[0]) === 1) {
+						if (isWelkom) return conn.sendMessage(id,"Udah Aktif", MessageType.text)
+						welkom.push(from)
+						fs.writeFileSync('./src/welkom.json', JSON.stringify(welkom))
+						conn.sendMessage(id, 'Sukses mengaktifkan fitur welcome di group ini ✔️', MessageType.text)
+					} else if (Number(args[0]) === 0) {
+						welkom.splice(from, 1)
+						fs.writeFileSync('./src/welkom.json', JSON.stringify(welkom))
+						conn.sendMessage(id , 'Sukses menonaktifkan fitur welcome di group ini ✔️', MessageType.text)
+					} else {
+						conn.sendMessage(id, '1 untuk mengaktifkan, 0 untuk menonaktifkan' , MessageType.text)
+					}
+					}
+
+if (text.includes(prefix + "prefix")) {
+if (args.length < 1) return
+if (!isOwner) return conn.sendMessage(id , "Koe Bukan Owner Sat!" , MessageType.text )
+prefix = args[0]
+conn.sendMessage(id, `Prefix berhasil di ubah menjadi : ${prefix}`,MessageType.text)
 }
 
 if (text.includes(">say")){
@@ -711,28 +994,7 @@ conn.sendMessage(id, info.info(id, BotName, tampilTanggal, tampilWaktu, instagra
 else if (text == '>p'){
 conn.sendMessage(id, 'kirim >p cewek/cowok\n\nContoh: >p cewek' ,MessageType.text, { quoted: m });
 }
-   if (messageType == 'imageMessage')
-   {
-      let caption = imageMessage.caption.toLocaleLowerCase()
-      const buffer = await conn.downloadMediaMessage(m) // to decrypt & use as a buffer
-      if (caption == '>sticker')
-      {
-         const stiker = await conn.downloadAndSaveMediaMessage(m) // to decrypt & save to file
-
-         const
-         {
-            exec
-         } = require("child_process");
-         exec('cwebp -q 50 ' + stiker + ' -o temp/' + jam + '.webp', (error, stdout, stderr) =>
-         {
-         
-        conn.sendMessage(id, 'Bentar, Lagi Di Proses!!!', MessageType.text, { quoted: m })
-         
-            let stik = fs.readFileSync('temp/' + jam + '.webp')
-            conn.sendMessage(id, stik, MessageType.sticker, { quoted: m })
-         });
-      }
-   }
+  
    if (messageType == 'imageMessage')
    {
       let caption = imageMessage.caption.toLocaleLowerCase()
@@ -755,6 +1017,106 @@ conn.sendMessage(id, 'kirim >p cewek/cowok\n\nContoh: >p cewek' ,MessageType.tex
          });
       }
    }
+   
+   
+   if (type == 'videoMessage') {
+				const captvid = m.message.videoMessage.caption.toLowerCase()
+				if (captvid == prefix + 'stikergif' || captvid == prefix + 'stickergif') {
+					try {
+      
+					media = await conn.downloadAndSaveMediaMessage(m)
+					ran = getRandom('.webp')
+					exec(`ffmpeg -i ${media} -vcodec libwebp -filter:v fps=fps=20 -lossless 1 -loop 0 -preset default -an -vsync 0 -s 512:512 ${ran}`, (error, stdout, stderr) => {
+						let buffer = fs.readFileSync(ran)
+						conn.sendMessage(id, buffer, MessageType.sticker, {quoted: m})
+						fs.unlinkSync(ran)
+						fs.unlinkSync(media)
+					})
+					} catch (error) {
+					console.log(error)
+					conn.sendMessage(id, "Tidak Bisa Convert Menjadi Sticker Bergerak Silakan Ulangi", MessageType.text)
+					}
+					}
+					}
+					
+					if (type == 'extendedTextMessage') {
+				mok = JSON.parse(JSON.stringify(m).replace('quotedM','m'))
+				qtdMsg = m.message.extendedTextMessage.text.toLowerCase()
+				if (qtdMsg == prefix + 'stiker' || qtdMsg == prefix + 'sticker') {
+					try {
+
+					media = await conn.downloadAndSaveMediaMessage(mok.message.extendedTextMessage.contextInfo)
+					ran = getRandom('.webp')
+					exec(`ffmpeg -i ${media} -vcodec libwebp -filter:v fps=fps=20 -lossless 1 -loop 0 -preset default -an -vsync 0 -s 512:512 ${ran}`, (error, stdout, stderr) => {
+						let buffer = fs.readFileSync(ran)
+						conn.sendMessage(id, buffer, MessageType.sticker, {quoted: m})
+						fs.unlinkSync(ran)
+						fs.unlinkSync(media)
+						})
+						} catch (error) {
+					console.log(error)
+					conn.sendMessage(id, "Tidak Bisa Convert Menjadi Sticker Silakan Ulangi", MessageType.text)
+					}
+					}
+					
+				if (qtdMsg == prefix + 'wait' && content.includes('imageMessage')) {
+
+					media = await conn.downloadAndSaveMediaMessage(mok.message.extendedTextMessage.contextInfo)
+					let buffer = fs.readFileSync(media)
+					await wait(buffer).then(res => {
+						conn.sendMessage(id, res.video, MessageType.video, {caption: res.hasil, quoted: m})
+						fs.unlinkSync(media)
+					}).catch(err => {
+						conn.sendMessage(id, err, MessageType.text, {quoted: m})
+						fs.unlinkSync(media)
+					})
+				} 
+				
+				if (qtdMsg == prefix + 'toimg' || qtdMsg == prefix + 'sti' || qtdMsg == prefix + 'stikertoimg' && content.includes('stickerMessage')) {
+					try {
+						
+					media = await conn.downloadAndSaveMediaMessage(mok.message.extendedTextMessage.contextInfo)
+					ran = getRandom('.png')
+					exec(`ffmpeg -i ${media} ${ran}`, (error, stdout, stderr) => {
+						let buffer = fs.readFileSync(ran)
+						conn.sendMessage(id, buffer, MessageType.image, { quoted: m })
+					})
+				} catch (error) {
+					console.log(error)
+					conn.sendMessage(id, "Tidak Bisa Convert Menjadi Gambar Silakan Ulangi", MessageType.text)
+					}
+					}
+				}
+				
+				
+			if (type == 'conversation') {
+				const body = m.message.conversation.toLowerCase()
+				const args = body.split(' ')
+				if (body.startsWith(prefix + 'tts ')) {
+					try {
+						
+					rendom = getRandom('.mp3')
+					random = getRandom('.ogg')
+					if (args.length < 1) return conn.sendMessage(id, 'Masukkan kode bahasanya juga mas e', MessageType.text, {quoted: m})
+					const gtts = require('./lib/gtts')(args[1])
+					const dtt = body.slice(8)
+					if (!dtt) return conn.sendMessage(id, 'Masukkan teks buat di jadiin suaranya juga mas e', MessageType.text, {quoted: m})
+					if (dtt.length > 600) return conn.sendMessage(id, 'Ngotak mas', MessageType.text, {quoted: m})
+					
+					gtts.save(rendom, dtt, function () {
+						exec(`ffmpeg -i ${rendom} -ar 48000 -vn -c:a libopus ${random}`, (error, stdout, stder) => {
+							let res = fs.readFileSync(random)
+							conn.sendMessage(id, res, MessageType.audio, {ptt: true})
+							fs.unlinkSync(random)
+							fs.unlinkSync(rendom)
+						})
+					})
+					} catch (error) {
+					console.log(error)
+					conn.sendMessage(id, "Masukan Code Bahasa!", MessageType.text)
+					}
+				}
+				}
 
    if (messageType === MessageType.text)
    {
@@ -1106,9 +1468,9 @@ if (text.includes('>ssweb')){
         })
     })
 }   
-     if (text.includes('>wikiID')){
-const teks = text.replace(/>wikiID /, "")
-axios.get(`https://arugaz.herokuapp.com/api/wiki?q=${teks}`).then((res) => {
+     if (text.includes('>wiki')){
+const teks = text.replace(/>wiki /, "")
+axios.get(`https://st4rz.herokuapp.com/api/wiki?q=${teks}`).then((res) => {
 	conn.sendMessage(id, '[❗] SEDANG DIPROSES', MessageType.text)
     let hasil = `*Pertanyaan: ${teks}*\n\nJawaban: ${res.data.result}`;
     conn.sendMessage(id, hasil ,MessageType.text, { quoted: m });
@@ -1118,14 +1480,6 @@ if (text.includes('>spamcall')){
 const teks = text.replace(/>spamcall /, "")
 axios.get(`https://arugaz.herokuapp.com/api/spamcall?no=${teks}`).then((res) => {
     let hasil = `${res.data.logs}\n${res.data.msg}`;
-    conn.sendMessage(id, hasil ,MessageType.text, { quoted: m });
-})
-}
-if (text.includes('>wikiEN')){
-const teks = text.replace(/>wikiEN /, "")
-axios.get(`https://arugaz.herokuapp.com/api/wikien?q=${teks}`).then((res) => {
-	conn.sendMessage(id, '[❗] SEDANG DIPROSES', MessageType.text)
-    let hasil = `*Question: ${teks}*\n\nAnswer: ${res.data.result}`;
     conn.sendMessage(id, hasil ,MessageType.text, { quoted: m });
 })
 }
@@ -1711,10 +2065,6 @@ var nomor = m.participant
  }
  conn.sendMessage(id, options, MessageType.text, { quoted: m })
 }
-if (text.includes(">leave")){
-const code = await conn.groupLeave (id.split("@s.whatsapp.net")[0])
-conn.sendMessage(id, + code , MessageType.text, { quoted: m})                                                       
-}
 if (text.includes(">linkgc")) {
 
 const code = await conn.groupInviteCode (id.split("@s.whatsapp.net")[0])
@@ -1953,22 +2303,6 @@ if (text.includes('>texthunder')){
             conn.sendMessage(id, buf, MessageType.image, { quoted: m })
         })
     })
-}
-if (text.includes(">movename")){
-const teks = text.replace(/>movename /, "")
-    let nama = `${teks}`;
-    let idgrup = `${id.split("@s.whatsapp.net")[0]}`;
-    conn.groupUpdateSubject(idgrup, nama);
-conn.sendMessage(id, 'Berhasil Mengganti Nama Group' ,MessageType.text, { quoted: m } );
-
-}
-if (text.includes(">movedesk")){
-const teks = text.replace(/>movedesk /, "")
-    let desk = `${teks}`;
-    let idgrup = `${id.split("@s.whatsapp.net")[0]}`;
-    conn.groupUpdateDescription(idgrup, desk)
-conn.sendMessage(id, 'Berhasil Mengganti Deskripsi Group' ,MessageType.text, { quoted: m } );
-
 }
 if (text.includes(">renungan")){
 const teks = text.replace(/>renungan /, "")
