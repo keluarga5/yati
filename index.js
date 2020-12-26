@@ -901,15 +901,14 @@ conn.sendMessage(id, info.info(id, BotName, tampilTanggal, tampilWaktu, instagra
 						conn.sendMessage(id, buffer, MessageType.sticker, {quoted: m})
 						fs.unlinkSync(ran)
 						fs.unlinkSync(media)
-					})
-					}
-					.catch 
-					   (error) {					
-					conn.sendMessage(id, "Tidak Bisa Convert Menjadi Sticker Bergerak Minimal Durasi 3 Detik", MessageType.text)
-					}
-					}
-					}
-					
+					  }
+					)
+
+					.catch(
+            (error) => {
+                conn.sendMessage(id, "❌Kirim Video Dengan Durasi 3 Detik❌", MessageType.text, {quoted: m}); // Logs an error if there was one
+            }
+        )
 					if (type == 'extendedTextMessage') {
 				mok = JSON.parse(JSON.stringify(m).replace('quotedM','m'))
 				qtdMsg = m.message.extendedTextMessage.text.toLowerCase()
@@ -982,9 +981,7 @@ conn.sendMessage(id, info.info(id, BotName, tampilTanggal, tampilWaktu, instagra
 							fs.unlinkSync(rendom)
 						})
 					})
-					} 
-					.catch 
-					   (error) {					
+					}catch(error) {					
 					conn.sendMessage(id, "Masukan Code Bahasa:\n\n\naf: Afrikaans\nsq: Albanian\nar: Arabic\nhy: Armenian\nca: Catalan\nzh: Chinese\nzh-cn: Chinese (Mandarin/China)\nzh-tw: Chinese (Mandarin/Taiwan)\nzh-yue: Chinese (Cantonese)\nhr: Croatian\ncs: Czech\nda: Danish\nnl: Dutch\nen: English\nen-au: English (Australia)\nen-uk: English (United Kingdom)\nen-us: English (United States)\neo: Esperanto\nfi: Finnish\nfr: French\nde: German\nel: Greek\nht: Haitian Creole\nhi: Hindi\nhu: Hungarian\nis: Icelandic\nid: Indonesian\nit: Italian\nja: Japanese\nko: Korean\nla: Latin\nlv: Latvian\nmk: Macedonian\nno: Norwegian\npl: Polish\npt: Portuguese\npt-br: Portuguese (Brazil)\nro: Romanian\nru: Russian\nsr: Serbian\nsk: Slovak\nes: Spanish\nes-es: Spanish (Spain)\nes-us: Spanish (United States)\nsw: Swahili\nsv: Swedish\nta: Tamil\nth: Thai\ntr: Turkish\nvi: Vietnamese\ncy: Welsh", MessageType.text, {quoted: m})
 					}
 				}
@@ -2297,13 +2294,5 @@ if (text.includes(">alay")){
 		conn.sendMessage(id, hasil, MessageType.text, {quoted: m})
 	})
 }
-if (text.includes(">joox")){
-const teks = text.replace(/>joox /, "")
-axios.get(`https://tobz-api.herokuapp.com/api/joox?q=${text}`).then((res) => {
-    let hasil = `*Judul:* ${res.data.result.judul} \n*Album:* ${res.data.result.album} \n*Tanggal Upload:* ${res.data.result.dipublikasi}\n*Download:* ${res.data.result.mp3}`;
-    conn.sendMessage(id, hasil ,MessageType.text, { quoted: m });
-})
-}
-      //Nyehh
-    
+     //yoi
 })
