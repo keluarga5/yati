@@ -19,7 +19,7 @@ Script ini di modifikasi sama saya sendiri Aris187 ID.
 > apt update && apt upgrade
 > git clone https://github.com/imamsyahfaa/asep
 > cd asep
-> npm i cfonts && npm i imgbb-uploader npm i spinnies && npm i @adiwajshing/baileys && npm i -g cwebp && npm i node-tesseract-ocr && npm i -g ytdl && npm i bitly && npm i  && npm i got && node index js
+> npm i cfonts && npm i imgbb-uploader && npm i spinnies && npm i @adiwajshing/baileys && npm i -g cwebp && npm i node-tesseract-ocr && npm i -g ytdl && npm i bitly && npm i  && npm i got && node index js
 > Tinggal scan kode qr yeee...done
 ```
 
